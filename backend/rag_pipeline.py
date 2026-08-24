@@ -1,4 +1,5 @@
-import fitz  # PyMuPDF
+import pypdf
+import io
 import uuid
 import math
 from typing import List, Dict, Any
@@ -9,15 +10,14 @@ vector_store_db: Dict[str, List[Dict[str, Any]]] = {}
 
 def parse_pdf_bytes(file_bytes: bytes) -> List[Dict[str, Any]]:
     """
-    Parses PDF bytes page-by-page using PyMuPDF (fitz).
+    Parses PDF bytes page-by-page using pure-python pypdf.
     Returns list of dicts with page number and extracted text.
     """
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    reader = pypdf.PdfReader(io.BytesIO(file_bytes))
     pages = []
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        text = page.get_text()
-        pages.append({"page": page_num + 1, "text": text})
+    for idx, page in enumerate(reader.pages):
+        text = page.extract_text() or ""
+        pages.append({"page": idx + 1, "text": text})
     return pages
 
 def recursive_character_text_splitter(

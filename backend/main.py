@@ -29,15 +29,16 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS Setup for Next.js Frontend
+# CORS Setup for Next.js Frontend & Firebase Hosting
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://rag-pdf-assistant-35992.web.app",
+        "https://rag-pdf-assistant-35992.firebaseapp.com",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001",
     ],
-    allow_origin_regex="http://localhost:.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,7 +50,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    origin = request.headers.get("origin", "http://localhost:3000")
+    origin = request.headers.get("origin", "https://rag-pdf-assistant-35992.web.app")
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
@@ -323,6 +324,10 @@ async def chat_stream(
 
 
 # --------------------- Entry Point ---------------------
+
+from mangum import Mangum
+
+handler = Mangum(app)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True,reload_includes=["*.py"])
