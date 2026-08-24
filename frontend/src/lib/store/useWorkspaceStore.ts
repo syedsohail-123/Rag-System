@@ -142,10 +142,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist<WorkspaceState
     }),
 }), {
   name: "workspace-storage",
-  partialize: (state) => ({
-    chatHistory: state.chatHistory,
-    documents: state.documents,
-    activeDocumentId: state.activeDocumentId,
-  }),
+  partialize: (state: WorkspaceState) =>
+    ({
+      chatHistory: state.chatHistory,
+      documents: state.documents,
+      activeDocumentId: state.activeDocumentId,
+    } as unknown as WorkspaceState),
 }));
 

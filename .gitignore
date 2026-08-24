@@ -1,0 +1,27 @@
+# Node modules & build
+node_modules/
+.next/
+out/
+.firebase/
+
+# Python & Virtualenv
+__pycache__/
+*.pyc
+.env
+.env.local
+.venv/
+venv/
+
+# Build & Zip artifacts
+package/
+frontend/package/
+build_package/
+*.zip
+terraform/*.zip
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate*
+
+# Local data
+uploads/
+backend/uploads/
