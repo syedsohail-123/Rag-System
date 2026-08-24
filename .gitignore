@@ -20,7 +20,10 @@ build_package/
 terraform/*.zip
 terraform/.terraform/
 terraform/.terraform.lock.hcl
-terraform/terraform.tfstate*
+*.tfstate*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
 
 # Local data
 uploads/
