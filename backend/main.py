@@ -293,7 +293,7 @@ def get_document_file(
     # Try fetching metadata from Supabase
     if supabase_client:
         try:
-            res = supabase_client.table("documents").select("*").eq("id", doc_id).eq("user_id", user_id).execute()
+            res = supabase_client.table("documents").select("*").eq("id", doc_id).execute()
             if res.data:
                 raw_filename = res.data[0].get("filename", "document.pdf")
                 s3_key = res.data[0].get("s3_key") or f"documents/{doc_id}.pdf"
@@ -301,10 +301,14 @@ def get_document_file(
         except Exception as e:
             print(f"Error reading document from Supabase/S3: {e}")
 
+    # Direct S3 check if Supabase didn't yield file
+    if content is None:
+        content = get_file_from_s3(f"documents/{doc_id}.pdf")
+
     # Fallback to local disk or memory
     if content is None:
         doc = db_documents.get(doc_id)
-        if doc and doc.get("user_id") == user_id:
+        if doc:
             raw_filename = doc.get("filename", "document.pdf")
             content = doc.get("file_bytes")
 

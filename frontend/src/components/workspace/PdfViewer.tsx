@@ -18,6 +18,7 @@ export function PdfViewer() {
     setDocuments,
     activeDocumentId,
     setActiveDocumentId,
+    removeDocument,
     activePage,
     setActivePage,
     setTotalPages,
@@ -246,9 +247,31 @@ export function PdfViewer() {
         )}
 
         {loadError && !pdfBlobUrl && (
-          <div className="text-xs text-rose-400 py-16 flex flex-col items-center gap-2 text-center">
-            <FileX className="w-6 h-6 text-rose-500" />
-            <span>{loadError}</span>
+          <div className="text-xs text-rose-400 py-16 flex flex-col items-center gap-3 text-center max-w-sm">
+            <FileX className="w-8 h-8 text-rose-500" />
+            <span className="font-semibold">{loadError}</span>
+            <p className="text-[11px] text-slate-400">
+              This document was from an earlier session or is no longer available in cloud storage.
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (activeDoc) removeDocument(activeDoc.id);
+                  setActiveDocumentId(null);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 rounded-lg border border-rose-500/30 transition-all cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Remove Stale Doc</span>
+              </button>
+              <button
+                onClick={() => setActiveDocumentId(null)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Upload PDF</span>
+              </button>
+            </div>
           </div>
         )}
 
