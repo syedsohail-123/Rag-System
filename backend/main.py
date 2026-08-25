@@ -191,7 +191,15 @@ def get_user_documents(user_id: str = Depends(get_current_user_id)):
                 .order("created_at", desc=True)
                 .execute()
             )
-            return res.data or []
+            data = res.data or []
+            clean_docs = []
+            for doc in data:
+                summary = doc.get("summary")
+                clean_summary = summary
+                if isinstance(summary, dict) and "file_b64" in summary:
+                    clean_summary = {k: v for k, v in summary.items() if k != "file_b64"}
+                clean_docs.append({**doc, "summary": clean_summary})
+            return clean_docs
         except Exception as e:
             print(f"Error fetching documents from Supabase: {e}")
 
@@ -201,7 +209,7 @@ def get_user_documents(user_id: str = Depends(get_current_user_id)):
             "user_id": doc["user_id"],
             "filename": doc["filename"],
             "status": doc["status"],
-            "summary": doc.get("summary"),
+            "summary": {k: v for k, v in doc.get("summary", {}).items() if k != "file_b64"} if isinstance(doc.get("summary"), dict) else doc.get("summary"),
             "file_url": doc["file_url"],
         }
         for doc in db_documents.values()
@@ -256,6 +264,12 @@ async def upload_document(
 
     # 2. Run parsing, chunking, embedding, and summary extraction
     summary = process_and_index_document(doc_id, user_id, file_bytes)
+    if not isinstance(summary, dict):
+        summary = {"text": str(summary)}
+
+    # Encode binary backup in metadata so document is 100% indestructible across restarts
+    import base64
+    summary["file_b64"] = base64.b64encode(file_bytes).decode("utf-8")
 
     doc_record = {
         "id": doc_id,
@@ -287,30 +301,38 @@ def get_document_file(
     doc_id: str,
     user_id: str = Depends(get_current_user_id),
 ):
+    import base64
     raw_filename = "document.pdf"
     content = None
 
-    # Try fetching metadata from Supabase
-    if supabase_client:
+    # 1. Try S3 bucket directly
+    content = get_file_from_s3(f"documents/{doc_id}.pdf")
+
+    # 2. Try fetching from Supabase (S3 key or base64 backup)
+    if content is None and supabase_client:
         try:
             res = supabase_client.table("documents").select("*").eq("id", doc_id).execute()
             if res.data:
                 raw_filename = res.data[0].get("filename", "document.pdf")
-                s3_key = res.data[0].get("s3_key") or f"documents/{doc_id}.pdf"
-                content = get_file_from_s3(s3_key)
+                s3_key = res.data[0].get("s3_key")
+                if s3_key:
+                    content = get_file_from_s3(s3_key)
+
+                if content is None:
+                    summary = res.data[0].get("summary") or {}
+                    if isinstance(summary, dict) and summary.get("file_b64"):
+                        content = base64.b64decode(summary["file_b64"])
         except Exception as e:
-            print(f"Error reading document from Supabase/S3: {e}")
+            print(f"Error reading document from Supabase: {e}")
 
-    # Direct S3 check if Supabase didn't yield file
-    if content is None:
-        content = get_file_from_s3(f"documents/{doc_id}.pdf")
-
-    # Fallback to local disk or memory
+    # 3. Fallback to in-memory or ephemeral local disk
     if content is None:
         doc = db_documents.get(doc_id)
         if doc:
             raw_filename = doc.get("filename", "document.pdf")
             content = doc.get("file_bytes")
+            if content is None and isinstance(doc.get("summary"), dict) and doc["summary"].get("file_b64"):
+                content = base64.b64decode(doc["summary"]["file_b64"])
 
         file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
         if content is None and os.path.exists(file_path):
