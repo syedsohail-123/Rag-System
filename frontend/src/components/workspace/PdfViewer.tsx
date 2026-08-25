@@ -26,7 +26,7 @@ export function PdfViewer() {
   } = useWorkspaceStore();
 
   const [numPages, setNumPages] = useState<number | null>(null);
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isQuickUploading, setIsQuickUploading] = useState(false);
@@ -63,18 +63,19 @@ export function PdfViewer() {
     }
   };
 
-  // Reliably fetch PDF as binary array buffer with Bearer token authentication
+  // Reliably fetch PDF as immutable Blob URL to prevent detached ArrayBuffer worker errors
   useEffect(() => {
     if (!activeDoc) {
-      setPdfData(null);
+      setPdfBlobUrl(null);
       return;
     }
 
     setIsLoadingPdf(true);
     setLoadError(null);
+    let currentBlobUrl: string | null = null;
 
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
     const fileEndpoint = `${apiBase}/documents/${activeDoc.id}/file`;
 
     fetch(fileEndpoint, {
@@ -83,29 +84,24 @@ export function PdfViewer() {
     })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to load PDF document");
-        const arrayBuf = await res.arrayBuffer();
-        setPdfData(new Uint8Array(arrayBuf));
+        const blob = await res.blob();
+        currentBlobUrl = URL.createObjectURL(blob);
+        setPdfBlobUrl(currentBlobUrl);
       })
       .catch((err) => {
         console.error("PDF preview load error:", err);
+        setLoadError("Failed to load document preview. Please refresh or re-upload.");
       })
       .finally(() => {
         setIsLoadingPdf(false);
       });
-  }, [activeDoc?.id]);
 
-  // Dual file source: Uint8Array binary buffer with URL fallback
-  const fileSource = useMemo(() => {
-    if (pdfData) return { data: pdfData };
-    if (!activeDoc) return null;
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
-    return {
-      url: `${apiBase}/documents/${activeDoc.id}/file`,
-      httpHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-      withCredentials: true,
+    return () => {
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
     };
-  }, [pdfData, activeDoc]);
+  }, [activeDoc?.id]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -243,22 +239,22 @@ export function PdfViewer() {
 
       {/* PDF View Container */}
       <div className={`flex-1 overflow-auto p-4 flex justify-center ${isLight ? "bg-slate-100/50" : "bg-slate-950"}`}>
-        {isLoadingPdf && !pdfData && (
+        {isLoadingPdf && !pdfBlobUrl && (
           <div className="text-xs text-slate-400 py-16 flex flex-col items-center gap-2 animate-pulse">
             <span>Loading PDF document stream...</span>
           </div>
         )}
 
-        {loadError && !fileSource && (
+        {loadError && !pdfBlobUrl && (
           <div className="text-xs text-rose-400 py-16 flex flex-col items-center gap-2 text-center">
             <FileX className="w-6 h-6 text-rose-500" />
             <span>{loadError}</span>
           </div>
         )}
 
-        {fileSource && (
+        {pdfBlobUrl && (
           <Document
-            file={fileSource}
+            file={pdfBlobUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={(err) => {
               console.warn("PDF worker load info:", err);
@@ -272,7 +268,7 @@ export function PdfViewer() {
             }
           >
             <Page
-              key={`page_${activePage}`}
+              key={`${activeDoc.id}_page_${activePage}`}
               pageNumber={activePage}
               renderTextLayer={true}
               renderAnnotationLayer={false}

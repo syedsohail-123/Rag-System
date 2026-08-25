@@ -52,22 +52,30 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
       setActiveFileName(file.name);
       setCurrentStep(0);
 
-      // Smooth animated skeleton pipeline steps
-      const stepTimer1 = setTimeout(() => setCurrentStep(1), 450);
-      const stepTimer2 = setTimeout(() => setCurrentStep(2), 900);
-      const stepTimer3 = setTimeout(() => setCurrentStep(3), 1400);
+      // Smooth slow-paced deliberate skeleton pipeline steps (1.2s - 1.5s per stage)
+      const stepTimer1 = setTimeout(() => setCurrentStep(1), 1200);
+      const stepTimer2 = setTimeout(() => setCurrentStep(2), 2500);
+      const stepTimer3 = setTimeout(() => setCurrentStep(3), 4000);
 
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const newDoc = await apiFetch<any>("/documents/upload", {
+        const uploadPromise = apiFetch<any>("/documents/upload", {
           method: "POST",
           body: formData,
         });
 
+        // Ensure minimum visual progress time so user sees the slow steps clearly
+        const delayPromise = new Promise((resolve) => setTimeout(resolve, 5200));
+
+        const [newDoc] = await Promise.all([uploadPromise, delayPromise]);
+
         setCurrentStep(4);
         newlyCreatedDocs.push(newDoc);
+
+        // Pause on Ready step for 1.2 seconds so the user sees the green checkmark
+        await new Promise((resolve) => setTimeout(resolve, 1200));
       } catch (err: any) {
         setError(err.message || `Failed to upload ${file.name}`);
       } finally {
@@ -86,7 +94,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
     setTimeout(() => {
       setIsUploading(false);
       setActiveFileName("");
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -160,7 +168,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
             {/* Skeleton Loading Bar */}
             <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-slate-800"}`}>
               <div
-                className="bg-blue-500 h-full transition-all duration-500 ease-out"
+                className="bg-blue-500 h-full transition-all duration-1000 ease-in-out"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               />
             </div>
