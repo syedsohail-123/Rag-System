@@ -38,16 +38,33 @@ export function Navbar() {
   const isLight = theme === "light";
   const { activeDocumentId, setActiveDocumentId } = useWorkspaceStore();
 
-  // Extract clean first name from email (e.g. "syed.sohail@gmail.com" -> "Syed", "alex_smith@..." -> "Alex")
+  // Extract clean first name from email (e.g. "ahmedsyedsohail776@gmail.com" -> "Ahmed", "syed.sohail@..." -> "Syed")
   const getFirstName = (email: string) => {
     if (!email) return "User";
-    const username = email.split("@")[0];
-    const clean = username.split(/[._-]/)[0];
-    return clean.charAt(0).toUpperCase() + clean.slice(1);
+    const raw = email.split("@")[0]; // e.g. "ahmedsyedsohail776"
+    const noNumbers = raw.replace(/[0-9_.-]/g, "");
+    if (!noNumbers) return "User";
+
+    const commonPrefixes = [
+      "ahmed", "syed", "sohail", "mohammed", "mohd", "ali", "khan",
+      "john", "alex", "david", "michael", "daniel", "sarah", "emma",
+      "rahul", "rohit", "priya", "amit", "raj", "anita", "vikram"
+    ];
+
+    const lower = noNumbers.toLowerCase();
+    for (const name of commonPrefixes) {
+      if (lower.startsWith(name)) {
+        return name.charAt(0).toUpperCase() + name.slice(1);
+      }
+    }
+
+    // Fallback: take up to 6 characters if very long
+    const clean = noNumbers.length > 7 ? noNumbers.slice(0, 5) : noNumbers;
+    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
   };
 
   const firstName = getFirstName(userEmail);
-  const initialLetter = userEmail ? userEmail.trim().charAt(0).toUpperCase() : "U";
+  const initialLetter = firstName.charAt(0).toUpperCase();
 
   return (
     <header
