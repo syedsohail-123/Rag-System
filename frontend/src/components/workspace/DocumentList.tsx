@@ -15,23 +15,10 @@ const statusColors: Record<DocumentStatus, string> = {
 };
 
 export function DocumentList() {
-  const { documents, activeDocumentId, setActiveDocumentId, removeDocument, setChatHistory, chatHistory } =
+  const { documents, activeDocumentId, setActiveDocumentId, removeDocument, theme } =
     useWorkspaceStore();
 
-  // Rehydrate persistent chat history when document is selected
-  // useEffect(() => {
-  //   if (activeDocumentId && !chatHistory[activeDocumentId]) {
-  //     apiFetch(`/documents/${activeDocumentId}/history`)
-  //       .then((history) => {
-  //         if (Array.isArray(history)) {
-  //           setChatHistory(activeDocumentId, history);
-  //         }
-  //       })
-  //       .catch(() => {
-  //         // Fallback empty list
-  //       });
-  //   }
-  // }, [activeDocumentId, chatHistory, setChatHistory]);
+  const isLight = theme === "light";
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -45,8 +32,8 @@ export function DocumentList() {
 
   if (documents.length === 0) {
     return (
-      <div className="p-6 text-center text-xs text-slate-500">
-        No documents or chat history yet.
+      <div className={`p-6 text-center text-xs ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+        No documents uploaded yet.
       </div>
     );
   }
@@ -62,26 +49,32 @@ export function DocumentList() {
             onClick={() => setActiveDocumentId(doc.id)}
             className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex flex-col gap-2 group ${
               isActive
-                ? "bg-blue-600/10 border-blue-500/40 text-slate-100 shadow-lg"
+                ? isLight
+                  ? "bg-blue-50 border-blue-400 text-blue-950 shadow-sm"
+                  : "bg-blue-600/10 border-blue-500/40 text-slate-100 shadow-lg"
+                : isLight
+                ? "bg-white border-slate-200 hover:bg-slate-100/70 text-slate-800 shadow-xs"
                 : "bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/60 text-slate-300"
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
-                <FileText className={`w-4 h-4 shrink-0 ${isActive ? "text-blue-400" : "text-slate-500"}`} />
-                <p className="font-medium truncate">{doc.filename}</p>
+                <FileText className={`w-4 h-4 shrink-0 ${isActive ? "text-blue-500" : isLight ? "text-slate-400" : "text-slate-500"}`} />
+                <p className={`font-semibold truncate ${isActive && isLight ? "text-blue-900" : ""}`}>{doc.filename}</p>
               </div>
 
               <button
                 onClick={(e) => handleDelete(e, doc.id)}
-                title="Delete Document & Chat History"
-                className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-rose-500/10"
+                title="Delete Document"
+                className={`p-1 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-rose-500/10 ${
+                  isLight ? "text-slate-400 hover:text-rose-600" : "text-slate-500 hover:text-rose-400"
+                }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[10px]">
+            <div className={`flex items-center justify-between pt-1 text-[10px] border-t ${isLight ? "border-slate-200/80" : "border-slate-800/60"}`}>
               <span
                 className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border font-mono ${
                   statusColors[doc.status]
@@ -101,4 +94,5 @@ export function DocumentList() {
     </div>
   );
 }
+
 

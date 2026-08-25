@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Navbar } from "@/components/workspace/Navbar";
-import { DocumentUploader } from "@/components/workspace/DocumentUploader";
 import { DocumentList } from "@/components/workspace/DocumentList";
 import { ChatInterface } from "@/components/workspace/ChatInterface";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { apiFetch } from "@/lib/api";
-
+import { Files, FileText, MessageSquare } from "lucide-react";
 
 const PdfViewer = dynamic(
   () => import("@/components/workspace/PdfViewer").then((mod) => mod.PdfViewer),
@@ -17,8 +16,16 @@ const PdfViewer = dynamic(
 );
 
 export default function WorkspacePage() {
-  const { setDocuments, documents, theme, setUserEmail } = useWorkspaceStore();
+  const { setDocuments, documents, theme, setUserEmail, activeDocumentId } = useWorkspaceStore();
   const router = useRouter();
+  const [mobileTab, setMobileTab] = useState<"docs" | "pdf" | "chat">("pdf");
+
+  useEffect(() => {
+    // Automatically switch to PDF viewer on mobile when a document is chosen
+    if (activeDocumentId) {
+      setMobileTab("pdf");
+    }
+  }, [activeDocumentId]);
 
   useEffect(() => {
     // 1. Fetch user profile
@@ -41,7 +48,6 @@ export default function WorkspacePage() {
         }
       })
       .catch(() => {
-        // Unauthenticated -> Redirect to authentication login page
         router.push("/login");
       });
   }, [setDocuments, setUserEmail, router]);
@@ -57,13 +63,68 @@ export default function WorkspacePage() {
       {/* Top Navigation */}
       <Navbar />
 
-      {/* Main Split-Screen Workspace */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Document Inventory & History */}
-        <aside
-          className={`w-80 border-r flex flex-col shrink-0 transition-colors duration-300 ${
-            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
+      {/* Mobile / Tablet Responsive Tab Switcher Bar (< lg screens) */}
+      <div
+        className={`lg:hidden flex items-center justify-around border-b px-2 py-1.5 shrink-0 ${
+          isLight ? "bg-slate-100/90 border-slate-200" : "bg-slate-900/90 border-slate-800"
+        }`}
+      >
+        <button
+          onClick={() => setMobileTab("docs")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            mobileTab === "docs"
+              ? isLight
+                ? "bg-white text-blue-600 shadow-sm"
+                : "bg-slate-800 text-blue-400 shadow-sm"
+              : isLight
+              ? "text-slate-600 hover:text-slate-900"
+              : "text-slate-400 hover:text-slate-200"
           }`}
+        >
+          <Files className="w-3.5 h-3.5" />
+          <span>Documents ({documents.length})</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab("pdf")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            mobileTab === "pdf"
+              ? isLight
+                ? "bg-white text-blue-600 shadow-sm"
+                : "bg-slate-800 text-blue-400 shadow-sm"
+              : isLight
+              ? "text-slate-600 hover:text-slate-900"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>PDF Viewer</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab("chat")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            mobileTab === "chat"
+              ? isLight
+                ? "bg-white text-blue-600 shadow-sm"
+                : "bg-slate-800 text-blue-400 shadow-sm"
+              : isLight
+              ? "text-slate-600 hover:text-slate-900"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>AI Chat</span>
+        </button>
+      </div>
+
+      {/* Main Split-Screen Workspace (Desktop: 3-pane, Mobile: selected tab) */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar: Document Inventory */}
+        <aside
+          className={`w-full lg:w-80 border-r flex flex-col shrink-0 transition-colors duration-300 ${
+            mobileTab === "docs" ? "flex" : "hidden lg:flex"
+          } ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"}`}
         >
           <div
             className={`p-3 pb-0 text-[11px] font-semibold tracking-wider uppercase ${
@@ -76,15 +137,19 @@ export default function WorkspacePage() {
         </aside>
 
         {/* Center Workspace: PDF Viewer */}
-        <main className="flex-1 overflow-hidden">
+        <main
+          className={`flex-1 overflow-hidden ${
+            mobileTab === "pdf" ? "flex flex-col" : "hidden lg:flex lg:flex-col"
+          }`}
+        >
           <PdfViewer />
         </main>
 
         {/* Right Pane: AI Review & Conversational RAG Chat */}
         <aside
-          className={`w-[420px] border-l flex flex-col shrink-0 transition-colors duration-300 ${
-            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
-          }`}
+          className={`w-full lg:w-[420px] border-l flex flex-col shrink-0 transition-colors duration-300 ${
+            mobileTab === "chat" ? "flex" : "hidden lg:flex"
+          } ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"}`}
         >
           <ChatInterface />
         </aside>
@@ -92,3 +157,4 @@ export default function WorkspacePage() {
     </div>
   );
 }
+

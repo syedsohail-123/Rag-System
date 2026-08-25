@@ -36,6 +36,17 @@ export function Navbar() {
   };
 
   const isLight = theme === "light";
+  const { activeDocumentId, setActiveDocumentId } = useWorkspaceStore();
+
+  // Extract clean first name from email (e.g. "syed.sohail@gmail.com" -> "Syed", "alex_smith@..." -> "Alex")
+  const getFirstName = (email: string) => {
+    if (!email) return "User";
+    const username = email.split("@")[0];
+    const clean = username.split(/[._-]/)[0];
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  };
+
+  const firstName = getFirstName(userEmail);
   const initialLetter = userEmail ? userEmail.trim().charAt(0).toUpperCase() : "U";
 
   return (
@@ -46,17 +57,38 @@ export function Navbar() {
           : "bg-slate-900/90 border-slate-800 text-slate-100 backdrop-blur"
       }`}
     >
-      {/* Brand Logo */}
-      <div className="flex items-center gap-2">
-        <div className="p-1.5 bg-blue-600/20 text-blue-500 rounded-lg border border-blue-500/30">
-          <FileText className="w-5 h-5" />
-        </div>
-        <span className="font-semibold tracking-tight">
-          AI PDF Assistant{" "}
-          <span className="text-xs font-normal text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-            RAG
+      {/* Brand Logo & Back to Upload Button */}
+      <div className="flex items-center gap-3">
+        <div
+          onClick={() => setActiveDocumentId(null)}
+          className="flex items-center gap-2 cursor-pointer group"
+          title="Return to Upload Home"
+        >
+          <div className="p-1.5 bg-blue-600/20 text-blue-500 rounded-lg border border-blue-500/30 group-hover:bg-blue-600/30 transition-colors">
+            <FileText className="w-5 h-5" />
+          </div>
+          <span className="font-semibold tracking-tight">
+            AI PDF Assistant{" "}
+            <span className="text-xs font-normal text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+              RAG
+            </span>
           </span>
-        </span>
+        </div>
+
+        {/* Back to Uploads Quick Switch Button */}
+        {activeDocumentId && (
+          <button
+            onClick={() => setActiveDocumentId(null)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-all ${
+              isLight
+                ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700"
+                : "bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-300"
+            }`}
+            title="Back to Document Upload Dashboard"
+          >
+            <span>← Back to Upload</span>
+          </button>
+        )}
       </div>
 
       {/* Right Controls: Settings Menu & User Avatar */}
@@ -77,11 +109,11 @@ export function Navbar() {
           </div>
 
           <span
-            className={`text-xs font-medium hidden md:inline truncate max-w-[120px] ${
+            className={`text-xs font-semibold hidden md:inline truncate max-w-[120px] ${
               isLight ? "text-slate-800" : "text-slate-200"
             }`}
           >
-            {userEmail ? userEmail.split("@")[0] : "Account"}
+            {firstName}
           </span>
 
           <Settings className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-slate-400"}`} />

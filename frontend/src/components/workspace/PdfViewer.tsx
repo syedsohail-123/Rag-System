@@ -6,15 +6,23 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import { DocumentUploader } from "./DocumentUploader";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
-import { ChevronLeft, ChevronRight, FileX } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileX, ArrowLeft } from "lucide-react";
+
 
 
 // Configure PDF worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export function PdfViewer() {
-  const { documents, activeDocumentId, activePage, setActivePage, setTotalPages, totalPages } =
-    useWorkspaceStore();
+  const {
+    documents,
+    activeDocumentId,
+    setActiveDocumentId,
+    activePage,
+    setActivePage,
+    setTotalPages,
+    totalPages,
+  } = useWorkspaceStore();
 
   const [numPages, setNumPages] = useState<number | null>(null);
 
@@ -54,9 +62,20 @@ export function PdfViewer() {
     <div className="h-full flex flex-col bg-slate-950 border-r border-slate-800">
       {/* Controls Bar */}
       <div className="h-10 border-b border-slate-800 px-4 flex items-center justify-between bg-slate-900/50 text-xs shrink-0">
-        <span className="font-medium text-slate-300 truncate max-w-[200px]">
-          {activeDoc.filename}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => setActiveDocumentId(null)}
+            title="Back to Upload Dashboard"
+            className="flex items-center gap-1 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2 py-1 rounded transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back</span>
+          </button>
+          <span className="font-medium text-slate-300 truncate max-w-[200px]">
+            {activeDoc.filename}
+          </span>
+        </div>
+
 
         <div className="flex items-center gap-2">
           <button

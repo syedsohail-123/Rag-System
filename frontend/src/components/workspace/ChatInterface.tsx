@@ -58,8 +58,10 @@ export function ChatInterface() {
     updateLastAssistantMessageToken,
     setLastAssistantCitations,
     setActivePage,
+    theme,
   } = useWorkspaceStore();
 
+  const isLight = theme === "light";
   const activeDoc = documents.find((doc) => doc.id === activeDocumentId);
   const currentMessages = activeDocumentId ? chatHistory[activeDocumentId] || [] : [];
 
@@ -142,9 +144,20 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100">
-      {/* AI Chat 7 Top Header & Model Selector */}
-      <div className="h-12 border-b border-slate-800/80 px-3.5 flex items-center justify-between text-xs bg-slate-900/80 backdrop-blur shrink-0">
+  return (
+    <div
+      className={`h-full flex flex-col transition-colors duration-300 ${
+        isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"
+      }`}
+    >
+      {/* AI Chat Top Header & Model Selector */}
+      <div
+        className={`h-12 border-b px-3.5 flex items-center justify-between text-xs shrink-0 transition-colors ${
+          isLight
+            ? "bg-slate-100/90 border-slate-200 text-slate-800"
+            : "bg-slate-900/80 border-slate-800/80 text-slate-100 backdrop-blur"
+        }`}
+      >
         <div className="flex items-center gap-2">
           <div
             className={`w-6 h-6 rounded-full border flex items-center justify-center overflow-hidden p-0.5 ${
@@ -162,20 +175,30 @@ export function ChatInterface() {
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-slate-950 text-[11px] font-medium text-slate-200 px-2 py-1 rounded-md border border-slate-800 outline-none cursor-pointer hover:border-slate-700"
+            className={`text-[11px] font-medium px-2 py-1 rounded-md border outline-none cursor-pointer ${
+              isLight
+                ? "bg-white text-slate-800 border-slate-300 hover:border-slate-400"
+                : "bg-slate-950 text-slate-200 border-slate-800 hover:border-slate-700"
+            }`}
           >
-            <option value="deepseek-v4-pro-free" className="bg-slate-900 text-slate-100">
+            <option value="deepseek-v4-pro-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
               DeepSeek-V4 Pro Free (Reasoning)
             </option>
-            <option value="qwen-2.5-max-free" className="bg-slate-900 text-slate-100">
+            <option value="qwen-2.5-max-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
               Qwen 3.8B Free (Long-Context)
             </option>
           </select>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[10px] text-slate-400 flex items-center gap-1 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50 font-mono whitespace-nowrap">
-            <MessageSquare className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+          <span
+            className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border font-mono whitespace-nowrap ${
+              isLight
+                ? "bg-slate-200/60 border-slate-300 text-slate-600"
+                : "bg-slate-800/50 border-slate-700/50 text-slate-400"
+            }`}
+          >
+            <MessageSquare className="w-2.5 h-2.5 shrink-0" />
             {currentMessages.length > 0
               ? `${currentMessages.length} msg${currentMessages.length > 1 ? "s" : ""}`
               : "No history"}
@@ -185,7 +208,7 @@ export function ChatInterface() {
             <button
               onClick={() => activeDocumentId && clearChatHistory(activeDocumentId)}
               title="Clear Chat History"
-              className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors shrink-0"
+              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors shrink-0"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -194,33 +217,51 @@ export function ChatInterface() {
           <button
             onClick={() => activeDocumentId && clearChatHistory(activeDocumentId)}
             title="Start a new chat session"
-            className="flex items-center gap-1 text-[10px] font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 px-2 py-1 rounded-md border border-slate-700/60 transition-all whitespace-nowrap shrink-0"
+            className={`flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md border transition-all whitespace-nowrap shrink-0 ${
+              isLight
+                ? "bg-white hover:bg-slate-100 text-slate-700 border-slate-300"
+                : "bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700/60"
+            }`}
           >
-            <Plus className="w-3 h-3 text-blue-400 shrink-0" />
+            <Plus className="w-3 h-3 text-blue-500 shrink-0" />
             <span>New Chat</span>
           </button>
         </div>
       </div>
 
-      {/* AI Chat 7 Pinned Context Source Banner */}
-      <div className="px-3.5 py-2 bg-slate-900/40 border-b border-slate-800/60 flex items-center justify-between text-xs shrink-0">
+      {/* AI Chat Pinned Context Source Banner */}
+      <div
+        className={`px-3.5 py-2 border-b flex items-center justify-between text-xs shrink-0 ${
+          isLight ? "bg-slate-100/60 border-slate-200" : "bg-slate-900/40 border-slate-800/60"
+        }`}
+      >
         <div className="flex items-center gap-2 min-w-0">
-          <Pin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span className="text-[11px] text-slate-400 shrink-0 font-medium">Pinned Source:</span>
-          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 truncate">
-            <FileText className="w-3 h-3 text-blue-400 shrink-0" />
-            <span className="text-[11px] text-slate-200 font-medium truncate max-w-[180px]">
+          <Pin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span className={`text-[11px] shrink-0 font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            Pinned Source:
+          </span>
+          <div
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded border truncate ${
+              isLight ? "bg-white border-slate-200" : "bg-slate-950 border-slate-800"
+            }`}
+          >
+            <FileText className="w-3 h-3 text-blue-500 shrink-0" />
+            <span
+              className={`text-[11px] font-medium truncate max-w-[180px] ${
+                isLight ? "text-slate-800" : "text-slate-200"
+              }`}
+            >
               {activeDoc.filename}
             </span>
           </div>
         </div>
-        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+        <span className="text-[10px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
           Active Evidence Mapping
         </span>
       </div>
 
       {/* Messages Feed Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isLight ? "bg-slate-50/50" : "bg-slate-950"}`}>
         {/* Executive Document Review */}
         <DocumentReview
           summary={activeDoc.summary}
@@ -236,7 +277,9 @@ export function ChatInterface() {
           >
             {msg.role === "assistant" && (
               <div
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 flex items-center justify-center shrink-0 shadow-lg mt-0.5 overflow-hidden p-1.5"
+                className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 shadow-sm mt-0.5 overflow-hidden p-1.5 ${
+                  isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-700/80"
+                }`}
                 title={selectedModel.includes("qwen") ? "Qwen 2.5 Model" : "DeepSeek-V4 Model"}
               >
                 {selectedModel.includes("qwen") ? (
@@ -248,9 +291,11 @@ export function ChatInterface() {
             )}
 
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2.5 group relative transition-all shadow-md ${
+              className={`max-w-[80%] rounded-2xl px-4 py-2.5 group relative transition-all shadow-sm ${
                 msg.role === "user"
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none border border-blue-400/20 shadow-blue-950/30"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none border border-blue-400/20 shadow-blue-500/10"
+                  : isLight
+                  ? "bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs"
                   : "bg-slate-900/90 border border-slate-800/90 text-slate-100 rounded-bl-none shadow-md"
               }`}
             >
@@ -339,7 +384,11 @@ export function ChatInterface() {
       </div>
 
       {/* Input Bar */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/60 shrink-0">
+      <div
+        className={`p-3 border-t shrink-0 transition-colors ${
+          isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"
+        }`}
+      >
         <div className="relative flex items-center">
           <textarea
             disabled={isStreaming}
@@ -352,7 +401,11 @@ export function ChatInterface() {
                 : `Ask ${selectedModel}... (Enter to send, Shift+Enter for newline)`
             }
             rows={2}
-            className="w-full resize-none bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 outline-none pr-10 disabled:opacity-50"
+            className={`w-full resize-none rounded-xl px-3.5 py-2.5 text-xs outline-none pr-10 disabled:opacity-50 transition-colors border ${
+              isLight
+                ? "bg-white border-slate-300 focus:border-blue-500 text-slate-900 placeholder:text-slate-400 shadow-xs"
+                : "bg-slate-950 border-slate-800 focus:border-blue-500 text-slate-100 placeholder:text-slate-500"
+            }`}
           />
 
           <button
