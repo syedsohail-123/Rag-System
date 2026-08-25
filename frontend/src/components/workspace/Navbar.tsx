@@ -1,7 +1,9 @@
 "use client";
 
+// AI PDF Document Assistant - Workspace Navbar with RAG Mode & Avatar
 import { useEffect, useState } from "react";
 import { FileText, LogOut, Sparkles, SlidersHorizontal } from "lucide-react";
+
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
