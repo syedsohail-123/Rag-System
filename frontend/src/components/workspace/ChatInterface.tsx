@@ -144,7 +144,6 @@ export function ChatInterface() {
   }
 
   return (
-  return (
     <div
       className={`h-full flex flex-col transition-colors duration-300 ${
         isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"
