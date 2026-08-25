@@ -52,10 +52,10 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
       setActiveFileName(file.name);
       setCurrentStep(0);
 
-      // Fast animated skeleton pipeline steps
-      const stepTimer1 = setTimeout(() => setCurrentStep(1), 150);
-      const stepTimer2 = setTimeout(() => setCurrentStep(2), 300);
-      const stepTimer3 = setTimeout(() => setCurrentStep(3), 450);
+      // Smooth animated skeleton pipeline steps
+      const stepTimer1 = setTimeout(() => setCurrentStep(1), 450);
+      const stepTimer2 = setTimeout(() => setCurrentStep(2), 900);
+      const stepTimer3 = setTimeout(() => setCurrentStep(3), 1400);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -86,7 +86,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
     setTimeout(() => {
       setIsUploading(false);
       setActiveFileName("");
-    }, 300);
+    }, 600);
   };
 
   return (
@@ -160,7 +160,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
             {/* Skeleton Loading Bar */}
             <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-slate-800"}`}>
               <div
-                className="bg-blue-500 h-full transition-all duration-200"
+                className="bg-blue-500 h-full transition-all duration-500 ease-out"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               />
             </div>

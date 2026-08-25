@@ -8,7 +8,7 @@ import { DocumentList } from "@/components/workspace/DocumentList";
 import { ChatInterface } from "@/components/workspace/ChatInterface";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { apiFetch } from "@/lib/api";
-import { Files, FileText, MessageSquare } from "lucide-react";
+import { Files, FileText, MessageSquare, Plus } from "lucide-react";
 
 const PdfViewer = dynamic(
   () => import("@/components/workspace/PdfViewer").then((mod) => mod.PdfViewer),
@@ -16,7 +16,8 @@ const PdfViewer = dynamic(
 );
 
 export default function WorkspacePage() {
-  const { setDocuments, documents, theme, setUserEmail, activeDocumentId } = useWorkspaceStore();
+  const { setDocuments, documents, theme, setUserEmail, activeDocumentId, setActiveDocumentId } =
+    useWorkspaceStore();
   const router = useRouter();
   const [mobileTab, setMobileTab] = useState<"docs" | "pdf" | "chat">("pdf");
 
@@ -127,11 +128,32 @@ export default function WorkspacePage() {
           } ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"}`}
         >
           <div
-            className={`p-3 pb-0 text-[11px] font-semibold tracking-wider uppercase ${
-              isLight ? "text-slate-500" : "text-slate-400"
+            className={`p-3 pb-2 flex items-center justify-between border-b ${
+              isLight ? "border-slate-200" : "border-slate-800/80"
             }`}
           >
-            Your Documents
+            <span
+              className={`text-[11px] font-semibold tracking-wider uppercase ${
+                isLight ? "text-slate-500" : "text-slate-400"
+              }`}
+            >
+              Your Documents ({documents.length})
+            </span>
+            <button
+              onClick={() => {
+                setActiveDocumentId(null);
+                setMobileTab("pdf");
+              }}
+              title="Upload New Document"
+              className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border transition-all cursor-pointer ${
+                isLight
+                  ? "bg-white hover:bg-slate-100 text-blue-600 border-slate-300 shadow-xs"
+                  : "bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/30"
+              }`}
+            >
+              <Plus className="w-3 h-3" />
+              <span>Upload</span>
+            </button>
           </div>
           <DocumentList />
         </aside>
