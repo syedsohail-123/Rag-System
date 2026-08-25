@@ -10,7 +10,12 @@ interface WorkspaceState {
   totalPages: number;
   isStreaming: boolean;
   selectedModel: string;
+  theme: "dark" | "light";
+  userEmail: string;
 
+  setTheme: (theme: "dark" | "light") => void;
+  toggleTheme: () => void;
+  setUserEmail: (email: string) => void;
   setActiveDocumentId: (id: string | null) => void;
   setDocuments: (docs: DocumentItem[]) => void;
   updateDocumentStatus: (id: string, status: DocumentItem["status"]) => void;
@@ -38,8 +43,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist<WorkspaceState
   totalPages: 1,
   isStreaming: false,
   selectedModel: "deepseek-v4-pro-free",
+  theme: "dark",
+  userEmail: "",
 
+  setTheme: (theme) => set({ theme }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === "dark" ? "light" : "dark" })),
+  setUserEmail: (email) => set({ userEmail: email }),
   setSelectedModel: (model) => set({ selectedModel: model }),
+
 
   clearChatHistory: (docId) =>
     set((state) => ({
@@ -147,6 +158,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist<WorkspaceState
       chatHistory: state.chatHistory,
       documents: state.documents,
       activeDocumentId: state.activeDocumentId,
+      theme: state.theme,
+      userEmail: state.userEmail,
     } as unknown as WorkspaceState),
 }));
+
 

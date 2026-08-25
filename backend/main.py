@@ -116,7 +116,7 @@ def signup(request: Request, payload: AuthRequest, response: Response):
         secure=True,
         path="/",
     )
-    return {"message": "User registered successfully", "user_id": user_id, "token": token}
+    return {"message": "User registered successfully", "user_id": user_id, "token": token, "email": payload.email}
 
 
 @app.post("/api/auth/signin")
@@ -144,8 +144,25 @@ def signin(request: Request, payload: AuthRequest, response: Response):
         secure=True,
         path="/",
     )
-    return {"message": "Signed in successfully", "token": token}
+    return {"message": "Signed in successfully", "token": token, "email": payload.email}
 
+
+@app.get("/api/auth/me")
+def get_current_user_profile(user_id: str = Depends(get_current_user_id)):
+    email = "user@example.com"
+    if supabase_client:
+        try:
+            res = supabase_client.table("users").select("email").eq("id", user_id).execute()
+            if res.data:
+                email = res.data[0].get("email", email)
+        except Exception:
+            pass
+    else:
+        for u_email, u_data in db_users.items():
+            if u_data.get("id") == user_id:
+                email = u_email
+                break
+    return {"user_id": user_id, "email": email}
 
 
 @app.post("/api/auth/signout")

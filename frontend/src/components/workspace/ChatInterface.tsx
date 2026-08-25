@@ -147,16 +147,16 @@ export function ChatInterface() {
       <div className="h-12 border-b border-slate-800/80 px-3.5 flex items-center justify-between text-xs bg-slate-900/80 backdrop-blur shrink-0">
         <div className="flex items-center gap-2">
           <div
-            className={`p-1 rounded-md border ${
+            className={`w-6 h-6 rounded-full border flex items-center justify-center overflow-hidden p-0.5 ${
               selectedModel.includes("qwen")
-                ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                : "bg-blue-500/10 text-blue-400 border-blue-500/30"
             }`}
           >
             {selectedModel.includes("qwen") ? (
-              <img src="/qwen-logo.png" alt="Qwen Logo" className="w-4 h-4 object-contain" />
+              <img src="/qwen-logo.png" alt="Qwen Logo" className="w-full h-full object-cover rounded-full" />
             ) : (
-              <img src="/deepseek-logo.png" alt="DeepSeek Logo" className="w-4 h-4 object-contain" />
+              <img src="/deepseek-logo.png" alt="DeepSeek Logo" className="w-full h-full object-cover rounded-full" />
             )}
           </div>
           <select
@@ -236,13 +236,13 @@ export function ChatInterface() {
           >
             {msg.role === "assistant" && (
               <div
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 flex items-center justify-center shrink-0 shadow-lg mt-0.5 overflow-hidden p-1"
+                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700/80 flex items-center justify-center shrink-0 shadow-lg mt-0.5 overflow-hidden p-1.5"
                 title={selectedModel.includes("qwen") ? "Qwen 2.5 Model" : "DeepSeek-V4 Model"}
               >
                 {selectedModel.includes("qwen") ? (
-                  <img src="/qwen-logo.png" alt="Qwen Logo" className="w-full h-full object-contain" />
+                  <img src="/qwen-logo.png" alt="Qwen Logo" className="w-full h-full object-cover rounded-full" />
                 ) : (
-                  <img src="/deepseek-logo.png" alt="DeepSeek Logo" className="w-4 h-4 object-contain" />
+                  <img src="/deepseek-logo.png" alt="DeepSeek Logo" className="w-full h-full object-cover rounded-full" />
                 )}
               </div>
             )}
