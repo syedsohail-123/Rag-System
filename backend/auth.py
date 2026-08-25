@@ -37,9 +37,14 @@ def create_access_token(user_id: str) -> str:
 def get_current_user_id(request: Request) -> str:
     token = request.cookies.get(settings.COOKIE_NAME)
     if not token:
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication token missing in HttpOnly cookie",
+            detail="Authentication token missing in cookie or Authorization header",
         )
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
@@ -51,3 +56,4 @@ def get_current_user_id(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
     except jwt.PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+

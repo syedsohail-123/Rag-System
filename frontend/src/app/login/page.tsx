@@ -26,19 +26,26 @@ export default function LoginPage() {
 
     try {
       if (authMode === "signup") {
-        await apiFetch("/auth/signup", {
+        const res = await apiFetch<{ token?: string }>("/auth/signup", {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
+        if (res.token) {
+          localStorage.setItem("auth_token", res.token);
+        }
+        localStorage.setItem("user_email", email);
         router.push("/");
       } else {
-        await apiFetch("/auth/signin", {
+        const res = await apiFetch<{ token?: string }>("/auth/signin", {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
+        if (res.token) {
+          localStorage.setItem("auth_token", res.token);
+        }
+        localStorage.setItem("user_email", email);
         router.push("/");
       }
-
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed.");
     } finally {

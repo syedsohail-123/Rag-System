@@ -1,0 +1,134 @@
+name: CI/CD Pipeline (Deploy Frontend & Backend)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # -----------------------------------------------------------
+  # 1. Path Filtering: Detect what changed in the push
+  # -----------------------------------------------------------
+  filter:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Path Filter Check
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # -----------------------------------------------------------
+  # 2. Backend Job: Deploy to AWS Lambda (ap-south-1)
+  # -----------------------------------------------------------
+  deploy-backend:
+    name: Deploy Backend to AWS Lambda
+    needs: filter
+    if: needs.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Package Linux x86_64 Lambda Dependencies
+        run: |
+          mkdir -p lambda_dist
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target ./lambda_dist \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: \
+            --upgrade \
+            -r backend/requirements.txt
+          cp backend/*.py lambda_dist/
+          cd lambda_dist
+          zip -r ../backend_dist.zip .
+          cd ..
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Update Lambda Function Code
+        run: |
+          aws lambda update-function-code \
+            --function-name rag-backend-prod \
+            --zip-file fileb://backend_dist.zip \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+  # -----------------------------------------------------------
+  # 3. Frontend Job: Build & Deploy to Firebase Hosting
+  # -----------------------------------------------------------
+  deploy-frontend:
+    name: Deploy Frontend to Firebase Hosting
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Next.js Static Export
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://56m5fybhdqlyfeqe2qdjtjjzna0madwo.lambda-url.ap-south-1.on.aws/api' }}
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RAG_PDF_ASSISTANT_35992 }}
+          channelId: live
+          projectId: rag-pdf-assistant-35992
+          entryPoint: frontend
+        continue-on-error: true
+
+      - name: Fallback Deploy with Firebase Token (if Service Account is not set)
+        if: env.FIREBASE_TOKEN != ''
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npx firebase-tools deploy --only hosting --token "$FIREBASE_TOKEN"

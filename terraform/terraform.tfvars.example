@@ -1,0 +1,19 @@
+# AWS Settings
+aws_region  = "ap-south-1"
+app_name    = "rag-backend"
+environment = "prod"
+
+# Security
+jwt_secret = "your_secure_random_jwt_secret_key_change_me"
+
+# Supabase Credentials
+supabase_url              = "https://<your-project-id>.supabase.co"
+supabase_service_role_key = "<your-supabase-service-role-key>"
+
+# Nara Router LLM Key
+nara_router_api_key  = "<your-nara-router-api-key>"
+nara_router_base_url = "https://router.bynara.id/v1"
+
+# Lambda Specs
+lambda_timeout     = 60
+lambda_memory_size = 1024

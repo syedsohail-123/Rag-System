@@ -25,14 +25,22 @@ export function PdfViewer() {
     setTotalPages(numPages);
   };
 
-  const fileUrl = useMemo(
-    () => activeDoc?.file_url || null,
-    [activeDoc?.file_url]
-  );
+  const pdfFile = useMemo(() => {
+    if (!activeDoc) return null;
+    const rawUrl = activeDoc.file_url || `/documents/${activeDoc.id}/file`;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    const fullUrl = rawUrl.startsWith("http")
+      ? rawUrl
+      : `${apiBase}${rawUrl.replace(/^\/api/, "")}`;
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    return {
+      url: fullUrl,
+      httpHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    };
+  }, [activeDoc]);
 
-  const pdfOptions = useMemo(() => ({ withCredentials: true }), []);
-
-  if (!activeDoc || !activeDoc.file_url || !fileUrl) {
+  if (!activeDoc || !pdfFile) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-950 text-slate-100 border-r border-slate-800">
         <div className="w-full max-w-xl flex flex-col items-center">
@@ -41,7 +49,6 @@ export function PdfViewer() {
       </div>
     );
   }
-
 
   return (
     <div className="h-full flex flex-col bg-slate-950 border-r border-slate-800">
@@ -78,8 +85,7 @@ export function PdfViewer() {
       {/* PDF View Container */}
       <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-950">
         <Document
-          file={fileUrl}
-          options={pdfOptions}
+          file={pdfFile}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadError={(err) => console.warn("PDF worker load info:", err)}
           loading={

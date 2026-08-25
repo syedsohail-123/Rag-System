@@ -112,11 +112,11 @@ def signup(request: Request, payload: AuthRequest, response: Response):
         value=token,
         max_age=43200,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="none",
+        secure=True,
         path="/",
     )
-    return {"message": "User registered successfully", "user_id": user_id}
+    return {"message": "User registered successfully", "user_id": user_id, "token": token}
 
 
 @app.post("/api/auth/signin")
@@ -140,23 +140,44 @@ def signin(request: Request, payload: AuthRequest, response: Response):
         value=token,
         max_age=43200,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="none",
+        secure=True,
         path="/",
     )
-    return {"message": "Signed in successfully"}
+    return {"message": "Signed in successfully", "token": token}
 
 
 
 @app.post("/api/auth/signout")
 async def signout(response: Response):
-    response.delete_cookie(settings.COOKIE_NAME, path="/", httponly=True, samesite="lax")
+    response.delete_cookie(settings.COOKIE_NAME, path="/", httponly=True, samesite="none", secure=True)
     return {"message": "Signed out successfully"}
+
+from db import (
+    supabase_client,
+    upload_file_to_s3,
+    get_file_from_s3,
+    delete_file_from_s3,
+    generate_s3_presigned_url,
+)
 
 # --------------------- Document Endpoints ---------------------
 
 @app.get("/api/documents")
 def get_user_documents(user_id: str = Depends(get_current_user_id)):
+    if supabase_client:
+        try:
+            res = (
+                supabase_client.table("documents")
+                .select("id, user_id, filename, status, summary, file_url, created_at")
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
+            return res.data or []
+        except Exception as e:
+            print(f"Error fetching documents from Supabase: {e}")
+
     user_docs = [
         {
             "id": doc["id"],
@@ -172,11 +193,16 @@ def get_user_documents(user_id: str = Depends(get_current_user_id)):
     return user_docs
 
 
-
 import os
+import tempfile
+from urllib.parse import quote
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "uploads")
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass
+
 
 @app.post("/api/documents/upload")
 async def upload_document(
@@ -202,13 +228,16 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="File exceeds 25MB limit.")
 
     doc_id = str(uuid.uuid4())
+    s3_key = f"documents/{doc_id}.pdf"
 
-    # Save PDF file to persistent disk storage
-    file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
-    with open(file_path, "wb") as f:
-        f.write(file_bytes)
+    # 1. Upload to AWS S3 (with local disk fallback)
+    s3_uploaded = upload_file_to_s3(file_bytes, s3_key)
+    if not s3_uploaded:
+        file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
 
-    # Run parsing, chunking, embedding, and summary extraction
+    # 2. Run parsing, chunking, embedding, and summary extraction
     summary = process_and_index_document(doc_id, user_id, file_bytes)
 
     doc_record = {
@@ -217,41 +246,57 @@ async def upload_document(
         "filename": file.filename,
         "status": "Ready",
         "summary": summary,
-        "file_url": f"http://localhost:8000/api/documents/{doc_id}/file",
-        "file_bytes": file_bytes,
-    }
-    db_documents[doc_id] = doc_record
-
-    # Return response payload excluding raw binary file_bytes
-    return {
-        "id": doc_id,
-        "user_id": user_id,
-        "filename": file.filename,
-        "status": "Ready",
-        "summary": summary,
-        "file_url": doc_record["file_url"],
+        "file_url": f"/api/documents/{doc_id}/file",
     }
 
+    # 3. Save to Supabase (with in-memory fallback)
+    if supabase_client:
+        try:
+            supabase_client.table("documents").insert({
+                **doc_record,
+                "s3_key": s3_key if s3_uploaded else None,
+            }).execute()
+        except Exception as e:
+            print(f"Error inserting document to Supabase: {e}")
+            db_documents[doc_id] = {**doc_record, "file_bytes": file_bytes}
+    else:
+        db_documents[doc_id] = {**doc_record, "file_bytes": file_bytes}
 
+    return doc_record
 
-
-from urllib.parse import quote
 
 @app.get("/api/documents/{doc_id}/file")
 def get_document_file(
     doc_id: str,
     user_id: str = Depends(get_current_user_id),
 ):
-    file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
-    doc = db_documents.get(doc_id)
-    raw_filename = doc.get("filename", "document.pdf") if doc else "document.pdf"
+    raw_filename = "document.pdf"
+    content = None
 
-    if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            content = f.read()
-    elif doc and "file_bytes" in doc:
-        content = doc["file_bytes"]
-    else:
+    # Try fetching metadata from Supabase
+    if supabase_client:
+        try:
+            res = supabase_client.table("documents").select("*").eq("id", doc_id).eq("user_id", user_id).execute()
+            if res.data:
+                raw_filename = res.data[0].get("filename", "document.pdf")
+                s3_key = res.data[0].get("s3_key") or f"documents/{doc_id}.pdf"
+                content = get_file_from_s3(s3_key)
+        except Exception as e:
+            print(f"Error reading document from Supabase/S3: {e}")
+
+    # Fallback to local disk or memory
+    if content is None:
+        doc = db_documents.get(doc_id)
+        if doc and doc.get("user_id") == user_id:
+            raw_filename = doc.get("filename", "document.pdf")
+            content = doc.get("file_bytes")
+
+        file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
+        if content is None and os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                content = f.read()
+
+    if content is None:
         raise HTTPException(status_code=404, detail="File not found or access denied")
 
     ascii_filename = raw_filename.encode("ascii", "ignore").decode("ascii") or "document.pdf"
@@ -268,6 +313,14 @@ def get_document_file(
 
 @app.get("/api/documents/{doc_id}/review")
 def get_document_review(doc_id: str, user_id: str = Depends(get_current_user_id)):
+    if supabase_client:
+        try:
+            res = supabase_client.table("documents").select("summary").eq("id", doc_id).eq("user_id", user_id).execute()
+            if res.data:
+                return res.data[0].get("summary", {})
+        except Exception as e:
+            print(f"Error fetching review from Supabase: {e}")
+
     doc = db_documents.get(doc_id)
     if not doc or doc["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -276,20 +329,51 @@ def get_document_review(doc_id: str, user_id: str = Depends(get_current_user_id)
 
 @app.get("/api/documents/{doc_id}/history")
 def get_chat_history(doc_id: str, user_id: str = Depends(get_current_user_id)):
+    if supabase_client:
+        try:
+            res = (
+                supabase_client.table("chat_logs")
+                .select("id, role, content, citations, created_at")
+                .eq("document_id", doc_id)
+                .eq("user_id", user_id)
+                .order("created_at", desc=False)
+                .execute()
+            )
+            if res.data is not None:
+                return res.data
+        except Exception as e:
+            print(f"Error fetching chat history from Supabase: {e}")
+
     return db_chat_logs.get(doc_id, [])
 
 
 @app.delete("/api/documents/{doc_id}")
 def delete_document(doc_id: str, user_id: str = Depends(get_current_user_id)):
-    doc = db_documents.get(doc_id)
-    if not doc or doc["user_id"] != user_id:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    # Cascading deletion across vectors, chat logs, and metadata
+    # 1. Delete vector indices
     delete_vector_indices(doc_id, user_id)
+
+    # 2. Delete S3 object
+    delete_file_from_s3(f"documents/{doc_id}.pdf")
+
+    # 3. Delete from Supabase
+    if supabase_client:
+        try:
+            supabase_client.table("chat_logs").delete().eq("document_id", doc_id).eq("user_id", user_id).execute()
+            supabase_client.table("documents").delete().eq("id", doc_id).eq("user_id", user_id).execute()
+        except Exception as e:
+            print(f"Error deleting document records from Supabase: {e}")
+
+    # In-memory and local disk cleanup
     if doc_id in db_chat_logs:
         del db_chat_logs[doc_id]
-    del db_documents[doc_id]
+    if doc_id in db_documents:
+        del db_documents[doc_id]
+    local_file = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
+    if os.path.exists(local_file):
+        try:
+            os.remove(local_file)
+        except Exception:
+            pass
 
     return {"message": "Document deleted successfully"}
 
@@ -305,21 +389,43 @@ async def chat_stream(
         query=payload.query,
     )
 
-    # Persist user message to chat logs
-    if payload.document_id not in db_chat_logs:
-        db_chat_logs[payload.document_id] = []
-
     user_msg_id = f"user-{uuid.uuid4()}"
-    db_chat_logs[payload.document_id].append({
+    user_msg = {
         "id": user_msg_id,
         "role": "user",
         "content": payload.query,
-    })
+    }
+
+    # Persist user message to Supabase and in-memory
+    if supabase_client:
+        try:
+            supabase_client.table("chat_logs").insert({
+                "id": user_msg_id,
+                "document_id": payload.document_id,
+                "user_id": user_id,
+                "role": "user",
+                "content": payload.query,
+            }).execute()
+        except Exception as e:
+            print(f"Error persisting user chat to Supabase: {e}")
+
+    if payload.document_id not in db_chat_logs:
+        db_chat_logs[payload.document_id] = []
+    db_chat_logs[payload.document_id].append(user_msg)
 
     return StreamingResponse(
-        generate_sse_chat_stream(payload.query, retrieved_chunks, payload.model, payload.document_id, db_chat_logs),
+        generate_sse_chat_stream(
+            query=payload.query,
+            retrieved_chunks=retrieved_chunks,
+            model=payload.model,
+            doc_id=payload.document_id,
+            chat_logs_db=db_chat_logs,
+            user_id=user_id,
+            supabase_client=supabase_client,
+        ),
         media_type="text/event-stream",
     )
+
 
 
 

@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import { UploadCloud, FileText, AlertCircle, CheckCircle2, Loader2, Sparkles, Database } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 
+import { apiFetch } from "@/lib/api";
+
 interface DocumentUploaderProps {
   isFullWidth?: boolean;
 }
@@ -27,7 +29,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
 
   const handleFiles = async (files: FileList | File[]) => {
     setError(null);
-    const pdfFiles = Array.from(files).filter((file) => file.type === "application/pdf");
+    const pdfFiles = Array.from(files).filter((file) => file.type === "application/pdf" || file.name.endsWith(".pdf"));
 
     if (pdfFiles.length === 0) {
       setError("Please select valid PDF files.");
@@ -43,39 +45,30 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
       setIsUploading(true);
       setCurrentStep(0);
 
-      // Step Progress Timed Simulation
-      const stepTimer1 = setTimeout(() => setCurrentStep(1), 600);
-      const stepTimer2 = setTimeout(() => setCurrentStep(2), 1200);
-      const stepTimer3 = setTimeout(() => setCurrentStep(3), 1800);
+      // Step Progress Timed Simulation (Fast & responsive)
+      const stepTimer1 = setTimeout(() => setCurrentStep(1), 150);
+      const stepTimer2 = setTimeout(() => setCurrentStep(2), 300);
+      const stepTimer3 = setTimeout(() => setCurrentStep(3), 450);
 
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/documents/upload`,
-          {
-            method: "POST",
-            credentials: "include",
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to upload PDF");
-        }
+        const newDoc = await apiFetch<any>("/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
 
         setCurrentStep(4);
-        const newDoc = await response.json();
         
-        // Small delay to show completion checkmark
+        // Rapid transition to document view
         setTimeout(() => {
           setActiveDocumentId(newDoc.id);
           useWorkspaceStore.getState().setDocuments([
             newDoc,
             ...useWorkspaceStore.getState().documents,
           ]);
-        }, 500);
+        }, 150);
 
       } catch (err: any) {
         setError(err.message || "File upload failed.");
@@ -141,7 +134,7 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
             {/* Skeleton Loading Bar */}
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
-                className="bg-blue-500 h-full transition-all duration-500"
+                className="bg-blue-500 h-full transition-all duration-200"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               />
             </div>

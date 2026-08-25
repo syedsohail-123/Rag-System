@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI PDF Document Assistant (RAG)"
-    JWT_SECRET: str = "supersecret_jwt_key_change_in_production_12345"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 12
     COOKIE_NAME: str = "access_token"
@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     NARA_ROUTER_API_KEY: str = ""
     NARA_ROUTER_BASE_URL: str = "https://router.bynara.id/v1"
+
+    # AWS S3 Settings
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "ap-south-1"
+    AWS_S3_BUCKET: str = ""
 
     class Config:
         env_file = ".env"

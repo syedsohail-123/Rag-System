@@ -56,6 +56,8 @@ async def generate_sse_chat_stream(
     model: str,
     doc_id: str = None,
     chat_logs_db: Dict[str, List[Dict[str, Any]]] = None,
+    user_id: str = None,
+    supabase_client: Any = None,
 ) -> AsyncGenerator[str, None]:
 
     citations = sorted(list(set(c["page"] for c in retrieved_chunks))) if retrieved_chunks else []
@@ -116,11 +118,29 @@ async def generate_sse_chat_stream(
 
     yield f"data: {json.dumps({'citations': citations})}\n\n"
 
-    if doc_id and chat_logs_db is not None:
-        chat_logs_db[doc_id].append({
+    if doc_id:
+        msg_record = {
             "id": f"assistant-{uuid.uuid4()}",
             "role": "assistant",
             "content": full_response,
             "citations": citations,
-        })
+        }
+        if chat_logs_db is not None:
+            if doc_id not in chat_logs_db:
+                chat_logs_db[doc_id] = []
+            chat_logs_db[doc_id].append(msg_record)
+
+        if supabase_client and user_id:
+            try:
+                supabase_client.table("chat_logs").insert({
+                    "id": msg_record["id"],
+                    "document_id": doc_id,
+                    "user_id": user_id,
+                    "role": "assistant",
+                    "content": full_response,
+                    "citations": citations,
+                }).execute()
+            except Exception as e:
+                print(f"Error persisting assistant message to Supabase: {e}")
+
 
