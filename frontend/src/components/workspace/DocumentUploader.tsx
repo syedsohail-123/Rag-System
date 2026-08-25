@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { FileText, AlertCircle, CheckCircle2, Loader2, Sparkles, Plus, Trash2, ArrowUpCircle } from "lucide-react";
+import { UploadCloud, FileText, AlertCircle, CheckCircle2, Loader2, Sparkles, Database } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { apiFetch } from "@/lib/api";
 
@@ -9,32 +9,26 @@ interface DocumentUploaderProps {
   isFullWidth?: boolean;
 }
 
-interface SelectedFile {
-  file: File;
-  id: string;
-  name: string;
-  size: number;
-}
-
-interface UploadingFileItem {
-  id: string;
-  name: string;
-  size: number;
-  status: "queued" | "uploading" | "embedding" | "done" | "error";
-  error?: string;
-}
-
 export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps) {
-  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState<UploadingFileItem[]>([]);
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [activeFileName, setActiveFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { setActiveDocumentId, setDocuments, theme } = useWorkspaceStore();
   const isLight = theme === "light";
 
-  const handleSelectFiles = (files: FileList | File[]) => {
+  const steps = [
+    { label: "Uploaded", desc: "Raw PDF stored safely", icon: FileText },
+    { label: "Parsing", desc: "Extracting layout text", icon: Loader2 },
+    { label: "Chunking", desc: "800-1000 token splitting", icon: Sparkles },
+    { label: "Embedding", desc: "Local ONNX 384-d vectors", icon: Database },
+    { label: "Ready", desc: "RAG search activated", icon: CheckCircle2 },
+  ];
+
+  const handleFiles = async (files: FileList | File[]) => {
     setError(null);
     const pdfFiles = Array.from(files).filter(
       (file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
@@ -45,73 +39,43 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
       return;
     }
 
-    const newSelected: SelectedFile[] = pdfFiles.map((file, idx) => ({
-      file,
-      id: `${file.name}-${idx}-${Date.now()}`,
-      name: file.name,
-      size: file.size,
-    }));
-
-    setSelectedFiles((prev) => [...prev, ...newSelected]);
-  };
-
-  const removeSelectedFile = (id: string) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleUploadAll = async () => {
-    if (selectedFiles.length === 0) return;
-    setError(null);
-
-    const queueItems: UploadingFileItem[] = selectedFiles.map((f) => ({
-      id: f.id,
-      name: f.name,
-      size: f.size,
-      status: f.size > 25 * 1024 * 1024 ? "error" : "queued",
-      error: f.size > 25 * 1024 * 1024 ? "Exceeds 25MB limit" : undefined,
-    }));
-
-    setUploadQueue(queueItems);
     setIsUploading(true);
-
-    const validFiles = selectedFiles.filter((f) => f.size <= 25 * 1024 * 1024);
     const newlyCreatedDocs: any[] = [];
 
-    await Promise.all(
-      validFiles.map(async ({ file, id }) => {
-        setUploadQueue((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, status: "uploading" } : item))
-        );
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const file = pdfFiles[i];
+      if (file.size > 25 * 1024 * 1024) {
+        setError(`"${file.name}" exceeds 25MB limit.`);
+        continue;
+      }
 
-        const formData = new FormData();
-        formData.append("file", file);
+      setActiveFileName(file.name);
+      setCurrentStep(0);
 
-        try {
-          setTimeout(() => {
-            setUploadQueue((prev) =>
-              prev.map((item) => (item.id === id ? { ...item, status: "embedding" } : item))
-            );
-          }, 300);
+      // Fast animated skeleton pipeline steps
+      const stepTimer1 = setTimeout(() => setCurrentStep(1), 150);
+      const stepTimer2 = setTimeout(() => setCurrentStep(2), 300);
+      const stepTimer3 = setTimeout(() => setCurrentStep(3), 450);
 
-          const newDoc = await apiFetch<any>("/documents/upload", {
-            method: "POST",
-            body: formData,
-          });
+      const formData = new FormData();
+      formData.append("file", file);
 
-          newlyCreatedDocs.push(newDoc);
+      try {
+        const newDoc = await apiFetch<any>("/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-          setUploadQueue((prev) =>
-            prev.map((item) => (item.id === id ? { ...item, status: "done" } : item))
-          );
-        } catch (err: any) {
-          setUploadQueue((prev) =>
-            prev.map((item) =>
-              item.id === id ? { ...item, status: "error", error: err.message || "Failed" } : item
-            )
-          );
-        }
-      })
-    );
+        setCurrentStep(4);
+        newlyCreatedDocs.push(newDoc);
+      } catch (err: any) {
+        setError(err.message || `Failed to upload ${file.name}`);
+      } finally {
+        clearTimeout(stepTimer1);
+        clearTimeout(stepTimer2);
+        clearTimeout(stepTimer3);
+      }
+    }
 
     if (newlyCreatedDocs.length > 0) {
       const existing = useWorkspaceStore.getState().documents;
@@ -121,19 +85,35 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
 
     setTimeout(() => {
       setIsUploading(false);
-      setSelectedFiles([]);
-      setUploadQueue([]);
-    }, 700);
+      setActiveFileName("");
+    }, 300);
   };
 
   return (
     <div className={`w-full ${isFullWidth ? "p-0" : "p-4 border-b border-slate-800"}`}>
       <div
-        className={`rounded-2xl border p-6 transition-all ${
-          isLight
-            ? "bg-white border-slate-200 shadow-sm"
-            : "bg-slate-900/60 border-slate-800 shadow-xl"
-        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-2xl transition-all ${
+          isFullWidth ? "p-10 min-h-[300px] flex flex-col justify-center" : "p-4 text-center"
+        } ${
+          isDragging
+            ? isLight
+              ? "border-blue-500 bg-blue-50/80"
+              : "border-blue-500 bg-blue-500/10"
+            : isLight
+            ? "border-slate-300 hover:border-blue-500 bg-slate-50/70"
+            : "border-slate-800 hover:border-slate-700 bg-slate-900/40"
+        } ${isUploading ? "cursor-wait" : "cursor-pointer"}`}
       >
         <input
           ref={fileInputRef}
@@ -142,156 +122,92 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
           multiple
           className="hidden"
           onChange={(e) => {
-            if (e.target.files) handleSelectFiles(e.target.files);
+            if (e.target.files) handleFiles(e.target.files);
           }}
         />
 
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-600/10 text-blue-500 rounded-xl border border-blue-500/20">
-              <FileText className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-slate-100"}`}>
-                Upload Documents
-              </h3>
-              <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                Select single or multiple PDF documents for vector indexing (up to 25MB each)
-              </p>
-            </div>
-          </div>
-
-          {/* Action Button to Select Files */}
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all shrink-0 disabled:opacity-50 cursor-pointer"
+        <div className="flex flex-col items-center justify-center gap-3 text-center">
+          <div
+            className={`p-4 bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 ${
+              isFullWidth ? "w-16 h-16" : "w-10 h-10 p-2.5"
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>Select PDF Files</span>
-          </button>
+            <UploadCloud className="w-full h-full" />
+          </div>
+          <div>
+            <h3
+              className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-100"} ${
+                isFullWidth ? "text-base" : "text-xs"
+              }`}
+            >
+              {isUploading
+                ? `Ingesting: ${activeFileName || "Document"}`
+                : "Click or drag multiple PDF files to upload"}
+            </h3>
+            <p
+              className={`mt-1 ${isLight ? "text-slate-500" : "text-slate-400"} ${
+                isFullWidth ? "text-xs" : "text-[11px]"
+              }`}
+            >
+              Multi-file support (select 1 or multiple PDFs, up to 25MB each)
+            </p>
+          </div>
         </div>
 
-        {/* Selected Files List (Staged for Upload) */}
-        {selectedFiles.length > 0 && !isUploading && (
-          <div className="mt-5 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-              <span>Selected Files ({selectedFiles.length})</span>
-              <button
-                type="button"
-                onClick={() => setSelectedFiles([])}
-                className="text-rose-500 hover:text-rose-600 text-[11px]"
-              >
-                Clear all
-              </button>
+        {/* 5-Step Skeleton Progress Pipeline */}
+        {isUploading && (
+          <div className="mt-6 w-full space-y-4 text-left border-t border-slate-200 dark:border-slate-800 pt-4">
+            {/* Skeleton Loading Bar */}
+            <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-slate-800"}`}>
+              <div
+                className="bg-blue-500 h-full transition-all duration-200"
+                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+              />
             </div>
 
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {selectedFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-colors ${
-                    isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span className={`font-semibold truncate max-w-[280px] ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                      {file.name}
-                    </span>
-                    <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>
-                      ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                    </span>
-                  </div>
+            {/* Individual Pipeline Step Badges */}
+            <div className="grid grid-cols-5 gap-2">
+              {steps.map((step, idx) => {
+                const StepIcon = step.icon;
+                const isCompleted = idx < currentStep;
+                const isCurrent = idx === currentStep;
 
-                  <button
-                    type="button"
-                    onClick={() => removeSelectedFile(file.id)}
-                    title="Remove file"
-                    className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors"
+                return (
+                  <div
+                    key={step.label}
+                    className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all ${
+                      isCurrent
+                        ? "bg-blue-500/15 border-blue-500/50 text-blue-500 animate-pulse font-bold"
+                        : isCompleted
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                        : isLight
+                        ? "bg-slate-100 border-slate-200 text-slate-400"
+                        : "bg-slate-900/40 border-slate-800/50 text-slate-600"
+                    }`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Ingest & Upload Button */}
-            <div className="pt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={handleUploadAll}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg transition-all cursor-pointer"
-              >
-                <ArrowUpCircle className="w-4 h-4" />
-                <span>Ingest & Vectorize ({selectedFiles.length}) Documents</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Live Multi-Upload Queue Progress */}
-        {isUploading && uploadQueue.length > 0 && (
-          <div className="mt-5 space-y-2.5 text-left border-t border-slate-200 dark:border-slate-800 pt-4">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-              <span>Ingesting Documents ({uploadQueue.length} files)</span>
-              <span className="text-[11px] font-mono text-blue-500">
-                {uploadQueue.filter((q) => q.status === "done").length} / {uploadQueue.length} Ready
-              </span>
-            </div>
-
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {uploadQueue.map((item) => (
-                <div
-                  key={item.id}
-                  className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
-                    item.status === "done"
-                      ? isLight
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                        : "bg-emerald-950/40 border-emerald-800/50 text-emerald-300"
-                      : item.status === "error"
-                      ? isLight
-                        ? "bg-rose-50 border-rose-200 text-rose-900"
-                        : "bg-rose-950/40 border-rose-800/50 text-rose-300"
-                      : isLight
-                      ? "bg-slate-50 border-slate-200 text-slate-700"
-                      : "bg-slate-950 border-slate-800 text-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span className="font-semibold truncate max-w-[240px]">{item.name}</span>
+                    <div
+                      className={`p-1.5 rounded-full mb-1 ${
+                        isCurrent
+                          ? "bg-blue-500/20"
+                          : isCompleted
+                          ? "bg-emerald-500/20"
+                          : isLight
+                          ? "bg-slate-200"
+                          : "bg-slate-800/40"
+                      }`}
+                    >
+                      <StepIcon
+                        className={`w-3.5 h-3.5 ${
+                          isCurrent ? "animate-spin text-blue-500" : isCompleted ? "text-emerald-500" : ""
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[10px] font-semibold tracking-wider uppercase">
+                      {step.label}
+                    </span>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.status === "queued" && (
-                      <span className="text-[11px] text-slate-400">Queued</span>
-                    )}
-                    {item.status === "uploading" && (
-                      <span className="text-[11px] text-blue-500 flex items-center gap-1 font-medium">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Uploading
-                      </span>
-                    )}
-                    {item.status === "embedding" && (
-                      <span className="text-[11px] text-purple-500 flex items-center gap-1 font-medium">
-                        <Sparkles className="w-3 h-3 animate-pulse" /> Vectorizing
-                      </span>
-                    )}
-                    {item.status === "done" && (
-                      <span className="text-[11px] text-emerald-500 flex items-center gap-1 font-bold">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Ready
-                      </span>
-                    )}
-                    {item.status === "error" && (
-                      <span className="text-[11px] text-rose-500 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {item.error || "Error"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -307,4 +223,5 @@ export function DocumentUploader({ isFullWidth = false }: DocumentUploaderProps)
     </div>
   );
 }
+
 

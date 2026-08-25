@@ -67,9 +67,23 @@ export function PdfViewer() {
       });
   }, [activeDoc?.id]);
 
+  // Dual file source: Uint8Array binary buffer with URL fallback
+  const fileSource = useMemo(() => {
+    if (pdfData) return { data: pdfData };
+    if (!activeDoc) return null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
+    return {
+      url: `${apiBase}/documents/${activeDoc.id}/file`,
+      httpHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    };
+  }, [pdfData, activeDoc]);
+
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setTotalPages(numPages);
+    setLoadError(null);
   };
 
   if (!activeDoc) {
@@ -150,32 +164,31 @@ export function PdfViewer() {
 
       {/* PDF View Container */}
       <div className={`flex-1 overflow-auto p-4 flex justify-center ${isLight ? "bg-slate-100/50" : "bg-slate-950"}`}>
-        {isLoadingPdf && (
+        {isLoadingPdf && !pdfData && (
           <div className="text-xs text-slate-400 py-16 flex flex-col items-center gap-2 animate-pulse">
             <span>Loading PDF document stream...</span>
           </div>
         )}
 
-        {loadError && (
+        {loadError && !fileSource && (
           <div className="text-xs text-rose-400 py-16 flex flex-col items-center gap-2 text-center">
             <FileX className="w-6 h-6 text-rose-500" />
             <span>{loadError}</span>
           </div>
         )}
 
-        {pdfData && !loadError && (
+        {fileSource && (
           <Document
-            file={{ data: pdfData }}
+            file={fileSource}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={(err) => {
               console.warn("PDF worker load info:", err);
-              setLoadError("Failed to render PDF preview.");
             }}
             loading={<div className="text-xs text-slate-400 py-10">Rendering pages...</div>}
             error={
               <div className="text-xs text-rose-400 py-10 flex flex-col items-center gap-2">
                 <FileX className="w-6 h-6 text-rose-500" />
-                <span>Failed to load PDF preview.</span>
+                <span>Failed to load document preview. Please refresh or re-upload.</span>
               </div>
             }
           >
