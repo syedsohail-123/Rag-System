@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FileText, LogOut, Sun, Moon, Settings, ChevronDown, ShieldCheck } from "lucide-react";
+import { FileText, LogOut, Sun, Moon, Sparkles, Check, Settings, ShieldCheck } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 
 export function Navbar() {
   const router = useRouter();
-  const { theme, toggleTheme, userEmail } = useWorkspaceStore();
+  const { theme, setTheme, toggleTheme, userEmail } = useWorkspaceStore();
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -119,11 +119,6 @@ export function Navbar() {
           </span>
 
           <Settings className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-slate-400"}`} />
-          <ChevronDown
-            className={`w-3 h-3 transition-transform duration-200 ${
-              isSettingsOpen ? "rotate-180" : ""
-            } ${isLight ? "text-slate-400" : "text-slate-500"}`}
-          />
         </button>
 
         {/* Dropdown Menu */}
@@ -154,40 +149,58 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Settings Actions: Theme Switcher */}
+            {/* Settings Actions: Theme Switcher (Cycles White -> Black -> Midnight) */}
             <div className="px-2 py-1 space-y-1">
               <div
                 className={`text-[10px] font-semibold tracking-wider uppercase px-1 ${
                   isLight ? "text-slate-400" : "text-slate-500"
                 }`}
               >
-                Preferences
+                Theme
               </div>
 
-              {/* Theme Toggle Option */}
+              {/* Single 3-Way Cycle Switch Row */}
               <div
                 onClick={toggleTheme}
-                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                title="Click to cycle themes (White -> Black -> Midnight)"
+                className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-colors ${
                   isLight ? "hover:bg-slate-100" : "hover:bg-slate-800/60"
                 }`}
               >
-                <div className="flex items-center gap-2 text-xs">
-                  {isLight ? (
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  {theme === "light" ? (
                     <Sun className="w-4 h-4 text-amber-500" />
+                  ) : theme === "midnight" ? (
+                    <Sparkles className="w-4 h-4 text-purple-400" />
                   ) : (
                     <Moon className="w-4 h-4 text-blue-400" />
                   )}
-                  <span className="font-medium">{isLight ? "White Theme" : "Dark Theme"}</span>
+                  <span>
+                    {theme === "light"
+                      ? "White Theme"
+                      : theme === "midnight"
+                      ? "Midnight Theme"
+                      : "Black Theme"}
+                  </span>
                 </div>
 
+                {/* 3-Position Smooth Sliding Switch */}
                 <div
-                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
-                    isLight ? "bg-amber-500" : "bg-blue-600"
+                  className={`w-14 h-6 flex items-center rounded-full p-0.5 transition-colors ${
+                    theme === "light"
+                      ? "bg-amber-500"
+                      : theme === "midnight"
+                      ? "bg-purple-600"
+                      : "bg-blue-600"
                   }`}
                 >
                   <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                      isLight ? "translate-x-4" : "translate-x-0"
+                    className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                      theme === "light"
+                        ? "translate-x-0"
+                        : theme === "dark"
+                        ? "translate-x-4"
+                        : "translate-x-8"
                     }`}
                   />
                 </div>
