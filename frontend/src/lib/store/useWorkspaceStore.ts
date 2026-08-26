@@ -10,10 +10,10 @@ interface WorkspaceState {
   totalPages: number;
   isStreaming: boolean;
   selectedModel: string;
-  theme: "dark" | "light" | "midnight";
+  theme: "dark" | "light";
   userEmail: string;
 
-  setTheme: (theme: "dark" | "light" | "midnight") => void;
+  setTheme: (theme: "dark" | "light") => void;
   toggleTheme: () => void;
   setUserEmail: (email: string) => void;
   setActiveDocumentId: (id: string | null) => void;
@@ -47,12 +47,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist<WorkspaceState
   userEmail: "",
 
   setTheme: (theme) => set({ theme }),
-  toggleTheme: () =>
-    set((state) => {
-      const nextTheme =
-        state.theme === "dark" ? "light" : state.theme === "light" ? "midnight" : "dark";
-      return { theme: nextTheme };
-    }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === "dark" ? "light" : "dark" })),
   setUserEmail: (email) => set({ userEmail: email }),
   setSelectedModel: (model) => set({ selectedModel: model }),
 

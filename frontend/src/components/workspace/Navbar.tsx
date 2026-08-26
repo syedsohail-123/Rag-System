@@ -149,7 +149,7 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Settings Actions: Theme Switcher (Cycles White -> Black -> Midnight) */}
+            {/* Settings Actions: 2-Color Theme Switcher */}
             <div className="px-2 py-1 space-y-1">
               <div
                 className={`text-[10px] font-semibold tracking-wider uppercase px-1 ${
@@ -159,48 +159,30 @@ export function Navbar() {
                 Theme
               </div>
 
-              {/* Single 3-Way Cycle Switch Row */}
+              {/* Theme Toggle Option */}
               <div
                 onClick={toggleTheme}
-                title="Click to cycle themes (White -> Black -> Midnight)"
                 className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-colors ${
                   isLight ? "hover:bg-slate-100" : "hover:bg-slate-800/60"
                 }`}
               >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  {theme === "light" ? (
+                <div className="flex items-center gap-2 text-xs">
+                  {isLight ? (
                     <Sun className="w-4 h-4 text-amber-500" />
-                  ) : theme === "midnight" ? (
-                    <Sparkles className="w-4 h-4 text-purple-400" />
                   ) : (
                     <Moon className="w-4 h-4 text-blue-400" />
                   )}
-                  <span>
-                    {theme === "light"
-                      ? "White Theme"
-                      : theme === "midnight"
-                      ? "Midnight Theme"
-                      : "Black Theme"}
-                  </span>
+                  <span className="font-medium">{isLight ? "White Theme" : "Black Theme"}</span>
                 </div>
 
-                {/* 3-Position Smooth Sliding Switch */}
                 <div
-                  className={`w-14 h-6 flex items-center rounded-full p-0.5 transition-colors ${
-                    theme === "light"
-                      ? "bg-amber-500"
-                      : theme === "midnight"
-                      ? "bg-purple-600"
-                      : "bg-blue-600"
+                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                    isLight ? "bg-amber-500" : "bg-blue-600"
                   }`}
                 >
                   <div
-                    className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                      theme === "light"
-                        ? "translate-x-0"
-                        : theme === "dark"
-                        ? "translate-x-4"
-                        : "translate-x-8"
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                      isLight ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
                 </div>
