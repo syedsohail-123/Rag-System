@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "ap-south-1"
-    AWS_S3_BUCKET: str = ""
+    AWS_S3_BUCKET: str = "rag-backend-docs-prod-8h1hvq"
 
     class Config:
         env_file = ".env"

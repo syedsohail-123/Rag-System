@@ -264,12 +264,6 @@ async def upload_document(
 
     # 2. Run parsing, chunking, embedding, and summary extraction
     summary = process_and_index_document(doc_id, user_id, file_bytes)
-    if not isinstance(summary, dict):
-        summary = {"text": str(summary)}
-
-    # Encode binary backup in metadata so document is 100% indestructible across restarts
-    import base64
-    summary["file_b64"] = base64.b64encode(file_bytes).decode("utf-8")
 
     doc_record = {
         "id": doc_id,
@@ -285,7 +279,7 @@ async def upload_document(
         try:
             supabase_client.table("documents").insert({
                 **doc_record,
-                "s3_key": s3_key if s3_uploaded else None,
+                "s3_key": s3_key,
             }).execute()
         except Exception as e:
             print(f"Error inserting document to Supabase: {e}")
@@ -301,14 +295,13 @@ def get_document_file(
     doc_id: str,
     user_id: str = Depends(get_current_user_id),
 ):
-    import base64
     raw_filename = "document.pdf"
     content = None
 
     # 1. Try S3 bucket directly
     content = get_file_from_s3(f"documents/{doc_id}.pdf")
 
-    # 2. Try fetching from Supabase (S3 key or base64 backup)
+    # 2. Try fetching from Supabase metadata if custom s3_key
     if content is None and supabase_client:
         try:
             res = supabase_client.table("documents").select("*").eq("id", doc_id).execute()
@@ -317,13 +310,8 @@ def get_document_file(
                 s3_key = res.data[0].get("s3_key")
                 if s3_key:
                     content = get_file_from_s3(s3_key)
-
-                if content is None:
-                    summary = res.data[0].get("summary") or {}
-                    if isinstance(summary, dict) and summary.get("file_b64"):
-                        content = base64.b64decode(summary["file_b64"])
         except Exception as e:
-            print(f"Error reading document from Supabase: {e}")
+            print(f"Error reading document from Supabase/S3: {e}")
 
     # 3. Fallback to in-memory or ephemeral local disk
     if content is None:
@@ -331,8 +319,6 @@ def get_document_file(
         if doc:
             raw_filename = doc.get("filename", "document.pdf")
             content = doc.get("file_bytes")
-            if content is None and isinstance(doc.get("summary"), dict) and doc["summary"].get("file_b64"):
-                content = base64.b64decode(doc["summary"]["file_b64"])
 
         file_path = os.path.join(UPLOAD_DIR, f"{doc_id}.pdf")
         if content is None and os.path.exists(file_path):
@@ -349,7 +335,8 @@ def get_document_file(
         content=content,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"inline; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded_filename}"
+            "Content-Disposition": f"inline; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded_filename}",
+            "Cache-Control": "public, max-age=86400",
         },
     )
 
