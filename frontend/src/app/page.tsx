@@ -139,21 +139,6 @@ export default function WorkspacePage() {
             >
               Your Documents ({documents.length})
             </span>
-            <button
-              onClick={() => {
-                setActiveDocumentId(null);
-                setMobileTab("pdf");
-              }}
-              title="Upload New Document"
-              className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border transition-all cursor-pointer ${
-                isLight
-                  ? "bg-white hover:bg-slate-100 text-blue-600 border-slate-300 shadow-xs"
-                  : "bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/30"
-              }`}
-            >
-              <Plus className="w-3 h-3" />
-              <span>Upload</span>
-            </button>
           </div>
           <DocumentList />
         </aside>
