@@ -32,9 +32,34 @@ export function PdfViewer() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isQuickUploading, setIsQuickUploading] = useState(false);
   const quickFileInputRef = useRef<HTMLInputElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(550);
 
   const isLight = theme === "light";
   const activeDoc = documents.find((doc) => doc.id === activeDocumentId);
+
+  // Responsive width tracking
+  useEffect(() => {
+    function updateWidth() {
+      if (pdfContainerRef.current) {
+        const clientWidth = pdfContainerRef.current.clientWidth;
+        const padding = clientWidth < 640 ? 16 : 40;
+        const targetWidth = Math.max(260, Math.min(clientWidth - padding, 750));
+        setContainerWidth(targetWidth);
+      }
+    }
+
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    if (pdfContainerRef.current) {
+      ro.observe(pdfContainerRef.current);
+    }
+    window.addEventListener("resize", updateWidth);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
 
   // Quick upload from tab bar
   const handleQuickUpload = async (files: FileList | null) => {
@@ -239,7 +264,12 @@ export function PdfViewer() {
       </div>
 
       {/* PDF View Container */}
-      <div className={`flex-1 overflow-auto p-4 flex justify-center ${isLight ? "bg-slate-100/50" : "bg-slate-950"}`}>
+      <div
+        ref={pdfContainerRef}
+        className={`flex-1 overflow-auto p-2 sm:p-4 flex justify-center items-start ${
+          isLight ? "bg-slate-100/50" : "bg-slate-950"
+        }`}
+      >
         {isLoadingPdf && !pdfBlobUrl && (
           <div className="text-xs text-slate-400 py-16 flex flex-col items-center gap-2 animate-pulse">
             <span>Loading PDF document stream...</span>
@@ -295,9 +325,14 @@ export function PdfViewer() {
               pageNumber={activePage}
               renderTextLayer={true}
               renderAnnotationLayer={false}
-              width={550}
-              loading={<div className="w-[550px] h-[750px] bg-slate-800/30 animate-pulse rounded-lg" />}
-              className="shadow-xl rounded-lg overflow-hidden border border-slate-700/30"
+              width={containerWidth}
+              loading={
+                <div
+                  style={{ width: containerWidth, height: containerWidth * 1.3 }}
+                  className="bg-slate-800/30 animate-pulse rounded-lg"
+                />
+              }
+              className="shadow-xl rounded-lg overflow-hidden border border-slate-700/30 max-w-full"
             />
           </Document>
         )}
