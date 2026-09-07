@@ -32,8 +32,10 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - '.github/**'
             frontend:
               - 'frontend/**'
+              - '.github/**'
 
   # -----------------------------------------------------------
   # 2. Backend Job: Deploy to AWS Lambda (ap-south-1)
@@ -82,6 +84,19 @@ jobs:
           aws lambda update-function-code \
             --function-name rag-backend-prod \
             --zip-file fileb://backend_dist.zip \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Wait for Lambda Function Update
+        run: |
+          aws lambda wait function-updated \
+            --function-name rag-backend-prod \
+            --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Update Lambda Environment Variables
+        run: |
+          aws lambda update-function-configuration \
+            --function-name rag-backend-prod \
+            --environment "Variables={NARA_ROUTER_API_KEY='${{ secrets.NARA_ROUTER_API_KEY }}',PROJECT_NAME='AI PDF Document Assistant (RAG)',NARA_ROUTER_BASE_URL='https://router.bynara.id/v1',AWS_S3_BUCKET='rag-backend-docs-prod-8h1hvq',SUPABASE_URL='${{ secrets.SUPABASE_URL }}',SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',JWT_SECRET='${{ secrets.JWT_SECRET }}'}" \
             --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
   # -----------------------------------------------------------
