@@ -5,14 +5,14 @@ from typing import AsyncGenerator, List, Dict, Any
 from config import settings
 
 MODEL_NAME_MAP = {
-    "deepseek-v4-pro-free": "agnes-2.0-flash",
-    "qwen-2.5-max-free": "qwen-3.8-max-free",
+    "deepseek-v4-pro-free": "agnes-2.5-flash",
+    "qwen-2.5-max-free": "qwen3.8-flash",
 }
-_cached_active_model = "qwen-3.8-max-free"
+_cached_active_model = "agnes-2.5-flash"
+
 async def _resolve_active_model(client: httpx.AsyncClient, requested_model: str) -> str:
     global _cached_active_model
     mapped_target = MODEL_NAME_MAP.get(requested_model, requested_model)
-    return mapped_target or _cached_active_model
     try:
         res = await client.get(
             f"{settings.NARA_ROUTER_BASE_URL}/models",
@@ -21,16 +21,23 @@ async def _resolve_active_model(client: httpx.AsyncClient, requested_model: str)
         )
         if res.status_code == 200:
             active_ids = [m["id"] for m in res.json().get("data", [])]
-            # Strictly filter for free-tier or flash models only
-            free_models = [m for m in active_ids if "-free" in m or "flash" in m]
-            if mapped_target in free_models:
+            if mapped_target in active_ids:
+                _cached_active_model = mapped_target
                 return mapped_target
+            if requested_model in active_ids:
+                _cached_active_model = requested_model
+                return requested_model
+            # Filter for free-tier or flash models
+            free_models = [m for m in active_ids if "-free" in m or "flash" in m]
             if free_models:
+                _cached_active_model = free_models[0]
                 return free_models[0]
+            if active_ids:
+                _cached_active_model = active_ids[0]
+                return active_ids[0]
     except Exception:
         pass
-    # Strict default fallback to known working free-tier model
-    return "qwen-3.8-max-free"
+    return mapped_target or _cached_active_model
 
 def _build_prompt(query: str, chunks: List[Dict[str, Any]]) -> str:
     if chunks:
