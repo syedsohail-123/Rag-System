@@ -180,11 +180,26 @@ export function ChatInterface() {
                 : "bg-slate-950 text-slate-200 border-slate-800 hover:border-slate-700"
             }`}
           >
-            <option value="deepseek-v4-pro-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
-              DeepSeek-V4 Pro Free (Reasoning)
+            <option value="agnes-2.5-flash" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              Agnes 2.5 Flash (Vision)
             </option>
-            <option value="qwen-2.5-max-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
-              Qwen 3.8B Free (Long-Context)
+            <option value="laguna-s-2.1" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              Laguna S 2.1 (Free)
+            </option>
+            <option value="longcat-2.0-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              LongCat 2.0 Free (1M Context)
+            </option>
+            <option value="minimax-m3-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              MiniMax M3 Free (Vision)
+            </option>
+            <option value="muse-spark-1.2-contributor-free" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              Muse Spark 1.2 Free (Vision)
+            </option>
+            <option value="qwen3.8-27b" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              Qwen 3.8 27B (Free)
+            </option>
+            <option value="stepfun-3.7-flash" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-slate-100"}>
+              StepFun 3.7 Flash (Vision)
             </option>
           </select>
         </div>

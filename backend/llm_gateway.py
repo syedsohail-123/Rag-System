@@ -5,8 +5,15 @@ from typing import AsyncGenerator, List, Dict, Any
 from config import settings
 
 MODEL_NAME_MAP = {
+    "agnes-2.5-flash": "agnes-2.5-flash",
+    "laguna-s-2.1": "laguna-s-2.1",
+    "longcat-2.0-free": "longcat-2.0-free",
+    "minimax-m3-free": "minimax-m3-free",
+    "muse-spark-1.2-contributor-free": "muse-spark-1.2-contributor-free",
+    "qwen3.8-27b": "qwen3.8-27b",
+    "stepfun-3.7-flash": "stepfun-3.7-flash",
     "deepseek-v4-pro-free": "agnes-2.5-flash",
-    "qwen-2.5-max-free": "qwen3.8-flash",
+    "qwen-2.5-max-free": "qwen3.8-27b",
 }
 _cached_active_model = "agnes-2.5-flash"
 

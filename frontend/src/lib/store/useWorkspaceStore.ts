@@ -42,7 +42,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist<WorkspaceState
   activePage: 1,
   totalPages: 1,
   isStreaming: false,
-  selectedModel: "deepseek-v4-pro-free",
+  selectedModel: "agnes-2.5-flash",
   theme: "dark",
   userEmail: "",
 
